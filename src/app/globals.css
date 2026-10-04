@@ -1,0 +1,250 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * PhotoXo design tokens
+ * ─────────────────────
+ * Neutral "ink" UI with a single brand accent (vermilion — a camera's REC
+ * light) used sparingly: logo mark, active-nav indicator, key highlights.
+ * Semantic status colours are reserved for state (never decoration) and are
+ * consumed only through <StatusBadge>/<Tone> so meaning stays consistent.
+ */
+@theme inline {
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  --font-heading: var(--font-sans);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-subtle: var(--subtle);
+
+  --color-brand: var(--brand);
+  --color-brand-foreground: var(--brand-foreground);
+
+  --color-tone-neutral: var(--tone-neutral);
+  --color-tone-neutral-bg: var(--tone-neutral-bg);
+  --color-tone-info: var(--tone-info);
+  --color-tone-info-bg: var(--tone-info-bg);
+  --color-tone-success: var(--tone-success);
+  --color-tone-success-bg: var(--tone-success-bg);
+  --color-tone-warning: var(--tone-warning);
+  --color-tone-warning-bg: var(--tone-warning-bg);
+  --color-tone-danger: var(--tone-danger);
+  --color-tone-danger-bg: var(--tone-danger-bg);
+
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Radius scale (base 8px) */
+  --radius-sm: calc(var(--radius) * 0.5);
+  --radius-md: calc(var(--radius) * 0.75);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.5);
+  --radius-2xl: calc(var(--radius) * 2);
+  --radius-3xl: calc(var(--radius) * 2.5);
+  --radius-4xl: calc(var(--radius) * 3);
+
+  /* Elevation: hairline-first, shadows stay quiet */
+  --shadow-xs: 0 1px 0 0 oklch(0.2 0.01 265 / 0.04);
+  --shadow-sm: 0 1px 2px 0 oklch(0.2 0.01 265 / 0.06), 0 0 0 1px oklch(0.2 0.01 265 / 0.04);
+  --shadow-md: 0 4px 12px -2px oklch(0.2 0.01 265 / 0.08), 0 0 0 1px oklch(0.2 0.01 265 / 0.05);
+  --shadow-lg: 0 12px 32px -8px oklch(0.2 0.01 265 / 0.16), 0 0 0 1px oklch(0.2 0.01 265 / 0.06);
+
+  /* Layout */
+  --spacing-topbar: 3.5rem;
+  --spacing-bottomnav: 4rem;
+}
+
+:root {
+  --radius: 0.5rem;
+
+  --background: oklch(0.992 0.0015 265);
+  --foreground: oklch(0.2 0.012 265);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.2 0.012 265);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.2 0.012 265);
+  --primary: oklch(0.22 0.012 265);
+  --primary-foreground: oklch(0.985 0.002 265);
+  --secondary: oklch(0.965 0.003 265);
+  --secondary-foreground: oklch(0.24 0.012 265);
+  --muted: oklch(0.965 0.003 265);
+  --muted-foreground: oklch(0.52 0.014 265);
+  --subtle: oklch(0.978 0.002 265);
+  --accent: oklch(0.955 0.004 265);
+  --accent-foreground: oklch(0.22 0.012 265);
+  --destructive: oklch(0.56 0.2 27);
+  --border: oklch(0.915 0.004 265);
+  --input: oklch(0.885 0.006 265);
+  --ring: oklch(0.6 0.02 265);
+
+  --brand: oklch(0.63 0.19 33);
+  --brand-foreground: oklch(0.99 0.005 33);
+
+  --tone-neutral: oklch(0.45 0.014 265);
+  --tone-neutral-bg: oklch(0.955 0.004 265);
+  --tone-info: oklch(0.48 0.15 255);
+  --tone-info-bg: oklch(0.955 0.025 255);
+  --tone-success: oklch(0.47 0.12 155);
+  --tone-success-bg: oklch(0.955 0.035 155);
+  --tone-warning: oklch(0.5 0.12 70);
+  --tone-warning-bg: oklch(0.96 0.05 85);
+  --tone-danger: oklch(0.52 0.19 27);
+  --tone-danger-bg: oklch(0.96 0.025 27);
+
+  --chart-1: oklch(0.55 0.15 255);
+  --chart-2: oklch(0.63 0.19 33);
+  --chart-3: oklch(0.6 0.12 155);
+  --chart-4: oklch(0.7 0.13 85);
+  --chart-5: oklch(0.5 0.014 265);
+
+  --sidebar: oklch(0.978 0.002 265);
+  --sidebar-foreground: oklch(0.32 0.012 265);
+  --sidebar-primary: oklch(0.22 0.012 265);
+  --sidebar-primary-foreground: oklch(0.985 0.002 265);
+  --sidebar-accent: oklch(0.94 0.004 265);
+  --sidebar-accent-foreground: oklch(0.2 0.012 265);
+  --sidebar-border: oklch(0.915 0.004 265);
+  --sidebar-ring: oklch(0.6 0.02 265);
+}
+
+.dark {
+  --background: oklch(0.17 0.006 265);
+  --foreground: oklch(0.95 0.003 265);
+  --card: oklch(0.2 0.007 265);
+  --card-foreground: oklch(0.95 0.003 265);
+  --popover: oklch(0.22 0.008 265);
+  --popover-foreground: oklch(0.95 0.003 265);
+  --primary: oklch(0.94 0.004 265);
+  --primary-foreground: oklch(0.2 0.008 265);
+  --secondary: oklch(0.26 0.008 265);
+  --secondary-foreground: oklch(0.95 0.003 265);
+  --muted: oklch(0.25 0.008 265);
+  --muted-foreground: oklch(0.7 0.012 265);
+  --subtle: oklch(0.19 0.006 265);
+  --accent: oklch(0.27 0.009 265);
+  --accent-foreground: oklch(0.95 0.003 265);
+  --destructive: oklch(0.68 0.18 25);
+  --border: oklch(1 0 0 / 9%);
+  --input: oklch(1 0 0 / 14%);
+  --ring: oklch(0.6 0.02 265);
+
+  --brand: oklch(0.7 0.17 35);
+  --brand-foreground: oklch(0.18 0.02 35);
+
+  --tone-neutral: oklch(0.8 0.01 265);
+  --tone-neutral-bg: oklch(0.28 0.008 265);
+  --tone-info: oklch(0.78 0.11 255);
+  --tone-info-bg: oklch(0.3 0.06 255);
+  --tone-success: oklch(0.78 0.12 155);
+  --tone-success-bg: oklch(0.29 0.05 155);
+  --tone-warning: oklch(0.83 0.12 85);
+  --tone-warning-bg: oklch(0.31 0.05 75);
+  --tone-danger: oklch(0.77 0.13 27);
+  --tone-danger-bg: oklch(0.3 0.07 27);
+
+  --sidebar: oklch(0.19 0.006 265);
+  --sidebar-foreground: oklch(0.82 0.008 265);
+  --sidebar-primary: oklch(0.94 0.004 265);
+  --sidebar-primary-foreground: oklch(0.2 0.008 265);
+  --sidebar-accent: oklch(0.25 0.008 265);
+  --sidebar-accent-foreground: oklch(0.95 0.003 265);
+  --sidebar-border: oklch(1 0 0 / 8%);
+  --sidebar-ring: oklch(0.6 0.02 265);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    @apply font-sans;
+    -webkit-text-size-adjust: 100%;
+    text-rendering: optimizeLegibility;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "cv11", "ss01";
+  }
+  /* Never allow accidental horizontal page scroll. */
+  html,
+  body {
+    overflow-x: clip;
+  }
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+  ::selection {
+    background: color-mix(in oklch, var(--brand) 22%, transparent);
+  }
+
+  /*
+   * Touch devices: guarantee ≥44px hit areas for primary controls without
+   * inflating dense desktop layouts.
+   */
+  @media (pointer: coarse) {
+    [data-slot="button"]:not([data-size^="icon"]):not([data-size="xs"]),
+    [data-slot="input"],
+    [data-slot="select-trigger"] {
+      min-height: 2.75rem;
+    }
+    [data-slot="button"][data-size^="icon"] {
+      min-height: 2.75rem;
+      min-width: 2.75rem;
+    }
+    [data-slot="input"],
+    [data-slot="textarea"] {
+      font-size: 16px; /* prevents iOS zoom-on-focus */
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@layer utilities {
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .pt-safe {
+    padding-top: env(safe-area-inset-top);
+  }
+}
