@@ -439,12 +439,19 @@ export function AddVersionButton({
                 value={uploads}
                 onChange={setUploads}
                 label="Upload images, video or PDF"
+                tooBigHint="Upload it to Google Drive and paste the share link below instead."
               />
+              <p className="text-xs text-muted-foreground">
+                Videos up to 100 MB, images and PDFs up to 25 MB. Bigger files: use a Google Drive link below.
+              </p>
               <FieldError messages={errors.assetIds} />
             </fieldset>
           )}
           <fieldset className="grid gap-2">
-            <legend className="mb-1 text-sm font-medium">{mediaEnabled ? "Links (optional)" : "Files / links"}</legend>
+            <legend className="mb-1 text-sm font-medium">
+              {mediaEnabled ? "Or share a link" : "Files / links"}{" "}
+              <span className="font-normal text-muted-foreground">(Google Drive, Canva, Frame.io…)</span>
+            </legend>
             {links.map((l, i) => (
               <div key={l.key} className="flex gap-2">
                 <Input
@@ -484,6 +491,9 @@ export function AddVersionButton({
               </div>
             ))}
             <FieldError messages={errors.links} />
+            <p className="text-xs text-muted-foreground">
+              For Google Drive, set sharing to “Anyone with the link” so reviewers and the client can open it.
+            </p>
             {links.length < MAX_VERSION_ASSETS && (
               <Button
                 variant="outline"

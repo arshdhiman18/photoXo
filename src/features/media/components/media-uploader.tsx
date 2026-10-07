@@ -5,6 +5,9 @@ import { FileUp, Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { createUploadIntentAction, finalizeUploadAction } from "@/features/media/actions";
 import { compressImage } from "@/lib/image-compress";
+import { UPLOAD_TYPES, type UploadMimeType } from "@/lib/domain/media";
+
+const mb = (bytes: number) => (bytes >= 1024 ** 3 ? `${(bytes / 1024 ** 3).toFixed(1)} GB` : `${Math.round(bytes / 1024 ** 2)} MB`);
 
 export interface UploadedFile {
   assetId: string;
@@ -42,6 +45,7 @@ export function MediaUploader({
   value,
   onChange,
   label = "Upload file",
+  tooBigHint,
 }: {
   purpose: "VERSION_MEDIA" | "RECEIPT" | "BRAND_LOGO";
   contentId?: string | null;
@@ -50,6 +54,8 @@ export function MediaUploader({
   value: UploadedFile[];
   onChange: (files: UploadedFile[]) => void;
   label?: string;
+  /** Shown when a picked file is over the size limit (e.g. "share a Drive link instead"). */
+  tooBigHint?: string;
 }) {
   const input = useRef<HTMLInputElement>(null);
   const [progress, setProgress] = useState<{ name: string; pct: number } | null>(null);
@@ -59,6 +65,18 @@ export function MediaUploader({
     if (!files?.length) return;
     setError(null);
     const added: UploadedFile[] = [];
+    // Check sizes before uploading anything, so a 2 GB video fails instantly, not after minutes.
+    const tooBig = Array.from(files).find((f) => {
+      const t = UPLOAD_TYPES[f.type as UploadMimeType];
+      // Photos are compressed before the limit applies; videos and PDFs are not.
+      return t && !/^image\/(jpeg|png|webp)$/.test(f.type) && f.size > t.maxBytes;
+    });
+    if (tooBig) {
+      const max = UPLOAD_TYPES[tooBig.type as UploadMimeType].maxBytes;
+      setError(`${tooBig.name} is ${mb(tooBig.size)} — the upload limit is ${mb(max)}.${tooBigHint ? ` ${tooBigHint}` : ""}`);
+      if (input.current) input.current.value = "";
+      return;
+    }
     for (const picked of Array.from(files)) {
       setProgress({ name: picked.name, pct: 0 });
       const file = await compressImage(picked, purpose === "BRAND_LOGO" ? { maxEdge: 512 } : undefined);
