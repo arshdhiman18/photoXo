@@ -38,7 +38,9 @@ export function ResponsiveDialog({
   if (isDesktop) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-md">
+        {/* DialogContent is a grid: min-w-0 on its children stops one long
+            unbreakable value (e.g. a URL) from stretching the dialog. */}
+        <DialogContent className="sm:max-w-md [&>*]:min-w-0">
           <DialogHeader>
             <DialogTitle>{title}</DialogTitle>
             {description && <DialogDescription>{description}</DialogDescription>}
@@ -60,7 +62,7 @@ export function ResponsiveDialog({
           <SheetTitle>{title}</SheetTitle>
           {description && <SheetDescription>{description}</SheetDescription>}
         </SheetHeader>
-        <div className="px-4 pb-4">{children}</div>
+        <div className="min-w-0 px-4 pb-4">{children}</div>
       </SheetContent>
     </Sheet>
   );

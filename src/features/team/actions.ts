@@ -6,6 +6,7 @@ import { canManageUsers } from "@/server/authz/permissions";
 import {
   changeUserRole,
   deactivateUser,
+  deleteUser,
   inviteUser,
   reactivateUser,
   resendInvitation,
@@ -44,6 +45,16 @@ export const revokeInvitationAction = authedAction(
   targetUserSchema,
   async (actor, { userId }) => {
     await revokeInvitation(actor, userId);
+    revalidatePath(TEAM_PATH);
+    return null;
+  },
+  adminOnly,
+);
+
+export const deleteUserAction = authedAction(
+  targetUserSchema,
+  async (actor, { userId }) => {
+    await deleteUser(actor, userId);
     revalidatePath(TEAM_PATH);
     return null;
   },

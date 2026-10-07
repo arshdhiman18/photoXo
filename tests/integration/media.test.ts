@@ -59,7 +59,7 @@ async function newContent() {
 }
 
 /** Simulate the browser's direct upload: Cloudinary now holds a resource under the intent's public id. */
-async function upload(actor: Actor, purpose: "VERSION_MEDIA" | "RECEIPT", contentId: string | null, mimeType = "image/png", format = "png") {
+async function upload(actor: Actor, purpose: "VERSION_MEDIA" | "RECEIPT" | "BRAND_LOGO", contentId: string | null, mimeType = "image/png", format = "png") {
   const intent = await createUploadIntent(actor, { purpose, contentId, filename: "frame.png", mimeType, bytes: 2048 });
   const publicId = String(intent.fields.public_id);
   cloud.resources.set(publicId, { public_id: publicId, resource_type: mimeType.startsWith("video") ? "video" : "image", type: "authenticated", format, bytes: 2048, width: 1080, height: 1350, version: 1 });
@@ -154,6 +154,24 @@ describe("uploads", () => {
     expect((await getExpense(D, e.id)).receipt).toMatchObject({ kind: "MEDIA" });
     expect((await getExpense(A, e.id)).receipt?.url).toMatch(/authenticated\/s--/);
     await expect(getExpense(O, e.id)).rejects.toMatchObject({ code: "NOT_FOUND" });
+  });
+
+  it("brand logos: ADMIN/MANAGER only, small images only; the brand gets a signed, resized URL", async () => {
+    await expect(createUploadIntent(D, { purpose: "BRAND_LOGO", contentId: null, filename: "l.png", mimeType: "image/png", bytes: 2048 })).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(createUploadIntent(A, { purpose: "BRAND_LOGO", contentId: null, filename: "l.mp4", mimeType: "video/mp4", bytes: 2048 })).rejects.toMatchObject({ code: "VALIDATION" });
+    await expect(createUploadIntent(A, { purpose: "BRAND_LOGO", contentId: null, filename: "l.png", mimeType: "image/png", bytes: 6 * 1024 * 1024 })).rejects.toMatchObject({ code: "VALIDATION" });
+    const { intent, publicId } = await upload(A, "BRAND_LOGO", null);
+    expect(publicId).toMatch(/\/logos\//);
+    const r = await finalizeUpload(A, intent.intentId);
+    expect(r.logoUrl).toMatch(/authenticated\/s--sig--\/c_limit,w_256,h_256,q_auto\//);
+    expect(await AssetModel.findById(r.assetId).lean()).toMatchObject({ kind: "LOGO", brandId: null });
+    await createBrand(A, { name: "Logo Co", description: null, logoUrl: r.logoUrl, status: "ACTIVE", socialHandles: [] });
+  });
+
+  it("a MOV stored as compressed MP4 is accepted", async () => {
+    const id = await newContent();
+    const { intent } = await upload(D, "VERSION_MEDIA", id, "video/quicktime", "mp4");
+    await expect(finalizeUpload(D, intent.intentId)).resolves.toMatchObject({ bytes: 2048 });
   });
 
   it("clients only see media of versions that passed internal review — and never internal file names", async () => {

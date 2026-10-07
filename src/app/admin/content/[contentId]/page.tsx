@@ -22,6 +22,7 @@ import {
 } from "@/features/content/components/content-panels";
 import { ApprovalHistoryList } from "@/features/approvals/components/approval-bits";
 import { ReviewPanel } from "@/features/approvals/components/review-panel";
+import { DeleteContentButton } from "@/features/content/components/delete-content-button";
 import { ReferenceCard } from "@/features/content/components/reference-card";
 import { TaskPanel } from "@/features/content/components/task-panel";
 import { VersionsList } from "@/features/content/components/versions-list";
@@ -45,7 +46,7 @@ import { PostingPanel } from "@/features/postings/components/posting-panel";
 import { UploaderLine } from "@/features/postings/components/posting-bits";
 import { ReopenForChangesButton, StartRevisionButton, TargetPlatformsControl } from "@/features/postings/components/posting-admin-controls";
 import { PostingHistoryByVersion } from "@/features/postings/components/posting-history";
-import { getContentActivity, getContentForAdmin } from "@/server/services/content.service";
+import { getContentActivity, getContentDeletion, getContentForAdmin } from "@/server/services/content.service";
 import { shootsForContent } from "@/server/services/shoots.service";
 import { ShootStatusBadge, TimeRange } from "@/features/shoots/components/shoot-bits";
 
@@ -93,7 +94,7 @@ export default async function AdminContentDetailPage({
     getReviewState(actor, c.id),
     getPostingWorkspace(actor, c.id),
   ]);
-  const activity = await getContentActivity(actor, c.id);
+  const [activity, deletion] = await Promise.all([getContentActivity(actor, c.id), getContentDeletion(actor, c.id)]);
   // The posting round is shown only while one is open/finished; earlier rounds live in the history below.
   const showPosting = ["READY_TO_POST", "POSTED", "COMPLETED"].includes(c.status);
   const productionOpen = PRODUCTION_STATUSES.includes(c.status) && !c.archivedAt;
@@ -154,6 +155,7 @@ export default async function AdminContentDetailPage({
             {!c.archivedAt && ARCHIVABLE_STATUSES.includes(c.status) && (
               <ArchiveContentButton contentId={c.id} />
             )}
+            <DeleteContentButton contentId={c.id} title={c.title} blockedReason={deletion.reason} />
           </div>
         </div>
       </div>

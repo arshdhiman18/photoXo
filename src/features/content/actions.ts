@@ -10,6 +10,7 @@ import {
 } from "@/server/authz/permissions";
 import {
   archiveContent,
+  deleteContent,
   cancelContent,
   changeRoute,
   createBrief,
@@ -133,6 +134,17 @@ export const cancelContentAction = authedAction(
   async (actor, { contentId, reason }) => {
     await cancelContent(actor, contentId, reason);
     revalidateContent(contentId);
+    return null;
+  },
+  ops,
+);
+
+export const deleteContentAction = authedAction(
+  contentTargetSchema,
+  async (actor, { contentId }) => {
+    await deleteContent(actor, contentId);
+    revalidatePath("/admin/content");
+    revalidatePath("/work/content");
     return null;
   },
   ops,

@@ -46,7 +46,7 @@ export async function listContentActivity(
     agencyId: new Types.ObjectId(agencyId),
     $or: [{ "entity.kind": "CONTENT", "entity.id": id }, { "meta.contentId": contentId }],
   })
-    .sort({ createdAt: -1 })
+    .sort({ createdAt: -1, _id: -1 })
     .limit(limit)
     .lean<ActivityLogDoc[]>();
   const ids = [...new Set(rows.map((r) => r.actorId).filter(Boolean).map(String))];

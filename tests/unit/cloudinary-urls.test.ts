@@ -8,6 +8,7 @@ vi.mock("@/lib/env", () => ({
 
 import { renditionFor, signCloudinaryParams, signedDeliveryUrl, signedUploadParams } from "@/server/media/cloudinary";
 import { formatMoney, minorToInput, parseMoneyInput } from "@/lib/money";
+import { incomingTransformation } from "@/lib/domain/media";
 
 describe("cloudinary signing", () => {
   it("upload params are server-chosen and signed over exactly those params", () => {
@@ -17,6 +18,19 @@ describe("cloudinary signing", () => {
     expect(p.fields.signature).toBe(
       signCloudinaryParams({ public_id: "photoxo/a/b/c", timestamp: 1_700_000_000, type: "authenticated", overwrite: "false" }, "secretXYZ"),
     );
+  });
+
+  it("compression on arrival is part of the signed request (can't be stripped by the browser)", () => {
+    const t = incomingTransformation("VERSION_MEDIA", "video/quicktime");
+    expect(t).toEqual({ transformation: "c_limit,w_1920,h_1920,q_auto:good,vc_h264,ac_aac", format: "mp4" });
+    const p = signedUploadParams({ publicId: "photoxo/a/v", resourceType: "video", now: new Date(1_700_000_000_000), ...t });
+    expect(p.fields).toMatchObject({ transformation: t.transformation, format: "mp4" });
+    expect(p.fields.signature).toBe(
+      signCloudinaryParams({ public_id: "photoxo/a/v", timestamp: 1_700_000_000, type: "authenticated", overwrite: "false", ...t }, "secretXYZ"),
+    );
+    expect(incomingTransformation("VERSION_MEDIA", "image/jpeg").transformation).toBe("c_limit,w_2560,h_2560,q_auto:good");
+    expect(incomingTransformation("BRAND_LOGO", "image/png").transformation).toBe("c_limit,w_512,h_512,q_auto:good");
+    expect(incomingTransformation("RECEIPT", "application/pdf")).toEqual({});
   });
 
   it("delivery URLs are signed over transformation + public id + format", () => {

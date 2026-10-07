@@ -59,14 +59,23 @@ export function signCloudinaryParams(
 export type ResourceType = "image" | "video" | "raw";
 
 /** Parameters the browser must send with the file — every value chosen by the server. */
-export function signedUploadParams(opts: { publicId: string; resourceType: ResourceType; now?: Date }) {
+export function signedUploadParams(opts: {
+  publicId: string;
+  resourceType: ResourceType;
+  /** Incoming transformation: applied before storage, so only the compressed file is kept. */
+  transformation?: string;
+  format?: string;
+  now?: Date;
+}) {
   const { cloudName, apiKey, apiSecret } = requireConfig();
-  const params = {
+  const params: Record<string, string | number> = {
     public_id: opts.publicId,
     timestamp: Math.floor((opts.now ?? new Date()).getTime() / 1000),
     type: "authenticated",
     overwrite: "false",
   };
+  if (opts.transformation) params.transformation = opts.transformation;
+  if (opts.format) params.format = opts.format;
   return {
     uploadUrl: `https://api.cloudinary.com/v1_1/${cloudName}/${opts.resourceType}/upload`,
     fields: { ...params, api_key: apiKey, signature: signCloudinaryParams(params, apiSecret) } as Record<string, string | number>,

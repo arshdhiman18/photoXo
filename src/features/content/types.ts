@@ -237,3 +237,24 @@ export interface AssigneeCandidateDTO {
   image: string | null;
   brandRoles: string[];
 }
+
+/** Supervisor view of one task (ADMIN/MANAGER task board). */
+export interface AdminTaskDTO {
+  id: string;
+  taskType: TaskType;
+  title: string;
+  status: TaskStatus;
+  waitingOnShoot: boolean;
+  dueDate: string | null;
+  startedAt: string | null;
+  completedAt: string | null;
+  assignee: { id: string; name: string } | null;
+  content: { id: string; code: string; title: string; status: ContentStatus };
+  brand: { id: string; name: string };
+}
+
+export interface AdminTaskBoardDTO {
+  items: AdminTaskDTO[];
+  counts: { open: number; inProgress: number; blocked: number; doneThisWeek: number; unassigned: number };
+  truncated: boolean;
+}

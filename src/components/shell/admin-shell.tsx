@@ -9,6 +9,7 @@ import {
   Camera,
   Clapperboard,
   LayoutDashboard,
+  ListChecks,
   Receipt,
   Send,
   Settings,
@@ -49,6 +50,7 @@ const NAV: NavGroup[] = [
     items: [
       { href: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
       { href: "/admin/production", label: "Production", icon: SquareKanban },
+      { href: "/admin/tasks", label: "Tasks", icon: ListChecks },
       { href: "/admin/shoots", label: "Shoots", icon: Camera },
       { href: "/admin/content", label: "Content", icon: Clapperboard },
       { href: "/admin/approvals", label: "Approvals", icon: BadgeCheck },

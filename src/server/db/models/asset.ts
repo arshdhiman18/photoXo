@@ -28,8 +28,8 @@ export interface MediaInfo {
   purgedAt: Date | null;
 }
 
-export type AssetKind = "CREATION" | "RAW" | "REFERENCE_FILE" | "POSTING_PROOF" | "RECEIPT";
-export const ASSET_KINDS: AssetKind[] = ["CREATION", "RAW", "REFERENCE_FILE", "POSTING_PROOF", "RECEIPT"];
+export type AssetKind = "CREATION" | "RAW" | "REFERENCE_FILE" | "POSTING_PROOF" | "RECEIPT" | "LOGO";
+export const ASSET_KINDS: AssetKind[] = ["CREATION", "RAW", "REFERENCE_FILE", "POSTING_PROOF", "RECEIPT", "LOGO"];
 
 export interface AssetDoc {
   _id: Types.ObjectId;
@@ -61,7 +61,7 @@ const assetSchema = new Schema<AssetDoc>(
       ref: "Brand",
       default: null,
       required: function (this: { kind?: string }) {
-        return this.kind !== "RECEIPT";
+        return this.kind !== "RECEIPT" && this.kind !== "LOGO"; // receipts / logos (new brands) have no brand
       },
     },
     kind: { type: String, enum: ASSET_KINDS, required: true },

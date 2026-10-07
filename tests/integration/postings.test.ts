@@ -213,13 +213,15 @@ describe("basic posting", () => {
     await expect(addVersion(id, "Sneaky", UA)).rejects.toMatchObject({ code: expect.stringMatching(/CONFLICT|FORBIDDEN/) });
   });
 
-  it("production tasks are not completed by approval or posting", async () => {
+  it("posting never changes production tasks (creation tasks complete at submission, not approval or posting)", async () => {
     const { id, v1 } = await ready(["INSTAGRAM"]);
     const before = await ProductionTaskModel.find({ contentId: id }).lean();
     await post(id, v1, "INSTAGRAM", IG);
     const after = await ProductionTaskModel.find({ contentId: id }).lean();
     expect(after.map((t) => t.status)).toEqual(before.map((t) => t.status));
-    expect(after.every((t) => t.status !== "COMPLETED")).toBe(true);
+    // Only version-producing tasks were completed — by the creator submitting for review.
+    const VERSION_TYPES = ["CREATE", "EDIT", "DESIGN", "UPLOAD_FINAL"];
+    expect(after.filter((t) => t.status === "COMPLETED").every((t) => VERSION_TYPES.includes(t.taskType))).toBe(true);
   });
 });
 

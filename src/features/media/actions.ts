@@ -10,7 +10,7 @@ import { createUploadIntent, finalizeUpload } from "@/server/services/media.serv
 // Strict: the browser never names a Cloudinary public id, owner, brand or URL.
 const intentSchema = z
   .object({
-    purpose: z.enum(["VERSION_MEDIA", "RECEIPT"]),
+    purpose: z.enum(["VERSION_MEDIA", "RECEIPT", "BRAND_LOGO"]),
     contentId: objectIdString.nullable().default(null),
     filename: z.string().trim().min(1).max(255),
     mimeType: z.enum(UPLOAD_MIME_TYPES as [string, ...string[]], { error: "This file type isn't supported" }),

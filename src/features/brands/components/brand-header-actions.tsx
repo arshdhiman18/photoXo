@@ -4,13 +4,21 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Archive, ArchiveRestore, Pencil } from "lucide-react";
 import { toast } from "sonner";
+import { DeleteButton } from "@/components/common/delete-button";
 import { ResponsiveDialog } from "@/components/common/responsive-dialog";
 import { Button } from "@/components/ui/button";
-import { archiveBrandAction, reactivateBrandAction } from "@/features/brands/actions";
+import { archiveBrandAction, deleteBrandAction, reactivateBrandAction } from "@/features/brands/actions";
 import { BrandFormDialog } from "@/features/brands/components/brand-form-dialog";
 import type { BrandDetailDTO } from "@/features/brands/types";
 
-export function BrandHeaderActions({ brand }: { brand: BrandDetailDTO }) {
+export function BrandHeaderActions({
+  brand,
+  deletion,
+}: {
+  brand: BrandDetailDTO;
+  /** null reason + deletable=false → the viewer may not delete brands (button hidden). */
+  deletion: { deletable: boolean; reason: string | null };
+}) {
   const router = useRouter();
   const [editOpen, setEditOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -30,7 +38,7 @@ export function BrandHeaderActions({ brand }: { brand: BrandDetailDTO }) {
   }
 
   return (
-    <div className="flex shrink-0 gap-2">
+    <div className="flex shrink-0 flex-wrap gap-2">
       <Button variant="outline" onClick={() => setEditOpen(true)}>
         <Pencil data-icon="inline-start" />
         Edit
@@ -45,6 +53,19 @@ export function BrandHeaderActions({ brand }: { brand: BrandDetailDTO }) {
           <Archive data-icon="inline-start" />
           Archive
         </Button>
+      )}
+
+      {(deletion.deletable || deletion.reason) && (
+        <DeleteButton
+          title={`Delete ${brand.name}?`}
+          description="The brand, its team assignments and its reference library are removed permanently. This can't be undone."
+          disabledReason={deletion.reason ? `${deletion.reason} Archive it instead.` : null}
+          run={() => deleteBrandAction({ brandId: brand.id })}
+          onDeleted={() => {
+            toast.success(`${brand.name} deleted`);
+            router.push("/admin/brands");
+          }}
+        />
       )}
 
       {editOpen && <BrandFormDialog open={editOpen} onOpenChange={setEditOpen} brand={brand} />}

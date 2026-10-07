@@ -239,3 +239,14 @@ export const contentListQuerySchema = z.object({
   page: z.coerce.number().int().min(1).max(10_000).optional().catch(undefined),
 });
 export type ContentListQuery = z.output<typeof contentListQuerySchema>;
+
+export const TASK_BOARD_VIEWS = ["open", "in_progress", "blocked", "unassigned", "done", "all"] as const;
+export type TaskBoardView = (typeof TASK_BOARD_VIEWS)[number];
+
+/** GET filters for the supervisor task board (invalid values fall back to defaults). */
+export const taskBoardQuerySchema = z.object({
+  view: z.enum(TASK_BOARD_VIEWS).catch("open").default("open"),
+  assignee: objectIdString.optional().catch(undefined),
+  brand: objectIdString.optional().catch(undefined),
+});
+export type TaskBoardQuery = z.infer<typeof taskBoardQuerySchema>;

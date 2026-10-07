@@ -8,9 +8,11 @@ import type {
 } from "@/features/content/types";
 import {
   ASSIGNEE_TASK_TRANSITIONS,
+  SUPERVISOR_TASK_STATUSES,
   PRODUCTION_STATUSES,
   TASK_STATUSES,
   type ContentStatus,
+  type TaskStatus,
 } from "@/lib/domain/content";
 import type { Actor } from "@/server/authz/actor";
 import { assetViewUrl } from "@/server/media/urls";
@@ -65,17 +67,18 @@ export function allowedTaskStatuses(
   contentStatus: ContentStatus,
 ) {
   if (!PRODUCTION_STATUSES.includes(contentStatus)) return [];
+  const own = Boolean(task.assignedTo) && String(task.assignedTo) === actor.userId;
   // Waiting for the shoot: only managers may override (e.g. footage already exists).
   if (task.waitingOn === "SHOOT" && !canManageTasks(actor)) return [];
+  const out = new Set<TaskStatus>();
+  // Doing the work (start / done) belongs to the assignee — also when that is a manager.
+  if (own) for (const s of ASSIGNEE_TASK_TRANSITIONS[task.status]) out.add(s);
+  // Supervisors (ADMIN/MANAGER) plan, never perform: unblock / block, remove, restore.
   if (canManageTasks(actor)) {
-    return task.status === "CANCELLED"
-      ? ["TODO" as const]
-      : TASK_STATUSES.filter((s) => s !== task.status);
+    if (task.status === "CANCELLED") out.add("TODO");
+    else for (const s of SUPERVISOR_TASK_STATUSES) if (s !== task.status) out.add(s);
   }
-  if (task.assignedTo && String(task.assignedTo) === actor.userId) {
-    return ASSIGNEE_TASK_TRANSITIONS[task.status];
-  }
-  return [];
+  return TASK_STATUSES.filter((s) => out.has(s));
 }
 
 export function toTaskDTO(

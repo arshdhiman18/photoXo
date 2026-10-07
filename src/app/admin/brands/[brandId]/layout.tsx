@@ -11,6 +11,7 @@ import { BrandTabs } from "@/features/brands/components/brand-tabs";
 import { Workspace } from "@/lib/domain/roles";
 import { requireWorkspaceActor } from "@/server/auth/session";
 import { canManageBrands } from "@/server/authz/permissions";
+import { getBrandDeletion } from "@/server/services/brands.service";
 import { loadAdminBrand } from "./load";
 
 export default async function BrandLayout({
@@ -24,6 +25,7 @@ export default async function BrandLayout({
   if (!canManageBrands(actor)) return <AccessDenied backHref="/admin" />;
   const { brandId } = await params;
   const brand = await loadAdminBrand(actor, brandId);
+  const deletion = await getBrandDeletion(actor, brandId);
 
   return (
     <div className="flex flex-col gap-6">
@@ -48,7 +50,7 @@ export default async function BrandLayout({
               <SocialHandleList handles={brand.socialHandles} limit={4} className="mt-2" />
             </div>
           </div>
-          <BrandHeaderActions brand={brand} />
+          <BrandHeaderActions brand={brand} deletion={deletion} />
         </div>
         {brand.status === "ARCHIVED" && (
           <div className="flex items-start gap-2.5 rounded-lg border bg-tone-neutral-bg px-3.5 py-2.5 text-sm">

@@ -11,8 +11,8 @@ import {
   type TaskType,
 } from "@/lib/domain/content";
 import { SystemRole, UserStatus } from "@/lib/domain/roles";
-import type { createTaskSchema } from "@/features/content/schemas";
-import type { AssigneeCandidateDTO, MyTaskDTO } from "@/features/content/types";
+import type { createTaskSchema, TaskBoardQuery } from "@/features/content/schemas";
+import type { AdminTaskBoardDTO, AdminTaskDTO, AssigneeCandidateDTO, MyTaskDTO } from "@/features/content/types";
 import { recordActivity } from "@/server/activity/record";
 import type { Actor } from "@/server/authz/actor";
 import { ConflictError, ForbiddenError, ValidationError } from "@/server/authz/errors";
@@ -170,8 +170,9 @@ export async function assignTask(
 }
 
 /**
- * Status change. Managers may set any status; an assignee may only move
- * their OWN task along ASSIGNEE_TASK_TRANSITIONS (no cancelling, no others').
+ * Status change. Supervisors (ADMIN/MANAGER) only plan: to do, blocked,
+ * removed (SUPERVISOR_TASK_STATUSES). Starting and completing belongs to the
+ * assignee, along ASSIGNEE_TASK_TRANSITIONS on their OWN task.
  */
 export async function updateTaskStatus(
   actor: Actor,
@@ -191,6 +192,8 @@ export async function updateTaskStatus(
   const now = new Date();
   const set: Record<string, unknown> = { status };
   if (status === "IN_PROGRESS" && !task.startedAt) set.startedAt = now;
+  // A supervisor un-blocking a task that waited for the shoot overrides the wait.
+  if (task.waitingOn && status !== "BLOCKED" && status !== "CANCELLED") set.waitingOn = null;
   set.completedAt = status === "COMPLETED" ? now : null;
 
   await withTransaction(async () => {
@@ -304,4 +307,77 @@ export async function listMyTasks(actor: Actor): Promise<MyTaskDTO[]> {
       },
     ];
   });
+}
+
+const BOARD_LIMIT = 300;
+
+/**
+ * Supervisor task board (ADMIN/MANAGER): who has which task and how far it is.
+ * Read-only overview; progress itself is reported by the assignees.
+ */
+export async function listTasksAdmin(actor: Actor, q: TaskBoardQuery): Promise<AdminTaskBoardDTO> {
+  assertCan(canManageTasks(actor));
+  const weekAgo = new Date(Date.now() - 7 * 86_400_000);
+  const base: Record<string, unknown> = {};
+  if (q.brand) base.brandId = asObjectId(q.brand);
+  if (q.assignee) base.assignedTo = asObjectId(q.assignee);
+
+  const viewFilter: Record<TaskBoardQuery["view"], Record<string, unknown>> = {
+    open: { status: { $in: OPEN_TASK_STATUSES } },
+    in_progress: { status: "IN_PROGRESS" },
+    blocked: { status: "BLOCKED" },
+    unassigned: { status: { $in: OPEN_TASK_STATUSES }, assignedTo: null },
+    done: { status: "COMPLETED" },
+    all: { status: { $ne: "CANCELLED" } },
+  };
+  const filter = { ...base, ...viewFilter[q.view] };
+  const sort: Record<string, 1 | -1> = q.view === "done" ? { completedAt: -1 } : { dueDate: 1, createdAt: 1 };
+
+  const [tasks, open, inProgress, blocked, doneThisWeek, unassigned] = await Promise.all([
+    tasksRepo.find(actor, filter, { sort, limit: BOARD_LIMIT + 1 }),
+    tasksRepo.count(actor, { ...base, status: { $in: OPEN_TASK_STATUSES } }),
+    tasksRepo.count(actor, { ...base, status: "IN_PROGRESS" }),
+    tasksRepo.count(actor, { ...base, status: "BLOCKED" }),
+    tasksRepo.count(actor, { ...base, status: "COMPLETED", completedAt: { $gte: weekAgo } }),
+    tasksRepo.count(actor, { ...base, status: { $in: OPEN_TASK_STATUSES }, assignedTo: null }),
+  ]);
+  const page = tasks.slice(0, BOARD_LIMIT);
+
+  const contents = await contentRepo.find(
+    actor,
+    { _id: { $in: [...new Set(page.map((t) => String(t.contentId)))].map(asObjectId) } },
+    { limit: BOARD_LIMIT, projection: { code: 1, title: 1, status: 1, brandId: 1, archivedAt: 1 } },
+  );
+  const byId = new Map(contents.map((c) => [String(c._id), c]));
+  const brands = await brandSummaries(
+    actor.agencyId,
+    [...new Set(contents.map((c) => String(c.brandId)))].map(asObjectId),
+  );
+  const assigneeIds = [...new Set(page.map((t) => t.assignedTo).filter(Boolean).map(String))];
+  const people = assigneeIds.length
+    ? await usersRepo.find(actor, { _id: { $in: assigneeIds.map(asObjectId) } }, { limit: BOARD_LIMIT, projection: { name: 1 } })
+    : [];
+  const names = new Map(people.map((u) => [String(u._id), u.name]));
+
+  const items: AdminTaskDTO[] = page.flatMap((t) => {
+    const c = byId.get(String(t.contentId));
+    if (!c || c.archivedAt) return [];
+    const who = t.assignedTo ? String(t.assignedTo) : null;
+    return [
+      {
+        id: String(t._id),
+        taskType: t.taskType,
+        title: t.title,
+        status: t.status,
+        waitingOnShoot: t.waitingOn === "SHOOT" && t.status === "BLOCKED",
+        dueDate: t.dueDate?.toISOString() ?? null,
+        startedAt: t.startedAt?.toISOString() ?? null,
+        completedAt: t.completedAt?.toISOString() ?? null,
+        assignee: who ? { id: who, name: names.get(who) ?? "Former member" } : null,
+        content: { id: String(c._id), code: c.code, title: c.title, status: c.status },
+        brand: { id: String(c.brandId), name: brands.get(String(c.brandId))?.name ?? "—" },
+      },
+    ];
+  });
+  return { items, counts: { open, inProgress, blocked, doneThisWeek, unassigned }, truncated: tasks.length > BOARD_LIMIT };
 }

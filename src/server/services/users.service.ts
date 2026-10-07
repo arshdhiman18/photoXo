@@ -43,6 +43,8 @@ import {
 } from "@/lib/domain/brands";
 import type { MemberBrandDTO } from "@/features/team/types";
 import { brandSummaries } from "@/server/repositories/brands.repo";
+import { hasBlockers, purgeAuthRecords, purgeUser, userDeletionBlockers } from "@/server/repositories/deletion.repo";
+import { describeBlockers } from "./deletion-messages";
 import {
   activeMembershipsForUsers,
   activeRolesForUser,
@@ -378,4 +380,30 @@ export async function listCrewPeople(actor: Actor): Promise<{ id: string; name: 
     { sort: { name: 1 }, limit: 200, projection: { name: 1 } },
   );
   return users.map((u) => ({ id: String(u._id), name: u.name }));
+}
+
+/**
+ * Permanently delete someone who never joined (still INVITED) — e.g. a wrong
+ * email or a duplicate. People who joined are deactivated instead, so their
+ * work and audit history keep a real owner.
+ */
+export async function deleteUser(actor: Actor, userId: string): Promise<void> {
+  const target = await loadAdministrableUser(actor, userId);
+  if (target.status !== UserStatus.INVITED) {
+    throw new ConflictError("Only people who haven't joined yet can be deleted. Deactivate this account instead.");
+  }
+  const blockers = await userDeletionBlockers(actor.agencyId, userId);
+  if (hasBlockers(blockers)) {
+    throw new ConflictError(`${target.name} has ${describeBlockers(blockers)}. Reassign that first, or revoke the invitation instead.`);
+  }
+  await withTransaction(async () => {
+    if (!(await purgeUser(actor.agencyId, userId))) throw new NotFoundError();
+    await recordActivity({
+      actor,
+      action: ActivityAction.USER_DELETED,
+      entity: { kind: ActivityEntityKind.USER, id: userId },
+      meta: { name: target.name, email: target.email, role: target.role },
+    });
+  });
+  await purgeAuthRecords(userId);
 }

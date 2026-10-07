@@ -61,6 +61,8 @@ export const BrandRole = {
   BRAND_MANAGER: "BRAND_MANAGER",
   VIDEOGRAPHER: "VIDEOGRAPHER",
   PHOTOGRAPHER: "PHOTOGRAPHER",
+  /** On-camera talent: influencer / model who appears in the photo or video. */
+  CONTENT_CREATOR: "CONTENT_CREATOR",
   EDITOR: "EDITOR",
   DESIGNER: "DESIGNER",
   ASSISTANT: "ASSISTANT",

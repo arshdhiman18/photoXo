@@ -2,7 +2,7 @@ import "server-only";
 import { Schema, type Model, type Types } from "mongoose";
 import { defineModel } from "./define";
 
-export type UploadPurpose = "VERSION_MEDIA" | "RECEIPT";
+export type UploadPurpose = "VERSION_MEDIA" | "RECEIPT" | "BRAND_LOGO";
 
 /**
  * A server-issued permission to upload ONE file to ONE server-chosen
@@ -33,7 +33,7 @@ const schema = new Schema<UploadIntentDoc>(
   {
     agencyId: { type: Schema.Types.ObjectId, ref: "Agency", required: true },
     userId: { type: Schema.Types.ObjectId, ref: "User", required: true },
-    purpose: { type: String, enum: ["VERSION_MEDIA", "RECEIPT"], required: true },
+    purpose: { type: String, enum: ["VERSION_MEDIA", "RECEIPT", "BRAND_LOGO"], required: true },
     brandId: { type: Schema.Types.ObjectId, ref: "Brand", default: null },
     contentId: { type: Schema.Types.ObjectId, ref: "Content", default: null },
     publicId: { type: String, required: true, maxlength: 200 },

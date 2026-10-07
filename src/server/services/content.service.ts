@@ -75,6 +75,8 @@ import {
 import { membershipsRepo } from "@/server/repositories/memberships.repo";
 import { asObjectId } from "@/server/repositories/scoped-repository";
 import { usersRepo } from "@/server/repositories/users.repo";
+import { contentDeletionBlockers, hasBlockers, purgeContent } from "@/server/repositories/deletion.repo";
+import { describeBlockers } from "./deletion-messages";
 import { createReferenceInTx } from "./references.service";
 
 type CreateBrief = z.output<typeof createBriefSchema>;
@@ -921,4 +923,38 @@ export async function getContentActivity(actor: Actor, contentId: string): Promi
       at: r.createdAt.toISOString(),
     };
   });
+}
+
+/**
+ * Permanently delete content created by mistake. Only while nothing has been
+ * produced or decided on it (no versions, reviews, posts, shoots or uploads);
+ * otherwise it must be cancelled/archived so its history stays intact.
+ */
+export async function deleteContent(actor: Actor, contentId: string): Promise<void> {
+  assertCan(canManageContent(actor));
+  const c = await getVisibleContent(actor, contentId); // 404 outside scope
+  const blockers = await contentDeletionBlockers(actor.agencyId, contentId);
+  if (hasBlockers(blockers)) {
+    throw new ConflictError(`This content has ${describeBlockers(blockers)}, so it can't be deleted. Cancel or archive it instead.`);
+  }
+  await withTransaction(async () => {
+    if (!(await purgeContent(actor.agencyId, contentId))) throw new NotFoundError();
+    await recordActivity({
+      actor,
+      action: ActivityAction.CONTENT_DELETED,
+      entity: { kind: ActivityEntityKind.CONTENT, id: contentId },
+      brandId: String(c.brandId),
+      meta: { title: c.title, code: c.code ?? null, status: c.status },
+    });
+  });
+}
+
+/** Whether the Delete button should be offered (and why not). ADMIN/MANAGER only. */
+export async function getContentDeletion(actor: Actor, contentId: string): Promise<{ deletable: boolean; reason: string | null }> {
+  if (!canManageContent(actor)) return { deletable: false, reason: null };
+  await getVisibleContent(actor, contentId);
+  const blockers = await contentDeletionBlockers(actor.agencyId, contentId);
+  return hasBlockers(blockers)
+    ? { deletable: false, reason: `It has ${describeBlockers(blockers)}.` }
+    : { deletable: true, reason: null };
 }

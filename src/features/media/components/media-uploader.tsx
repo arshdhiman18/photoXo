@@ -4,13 +4,16 @@ import { useRef, useState } from "react";
 import { FileUp, Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { createUploadIntentAction, finalizeUploadAction } from "@/features/media/actions";
+import { compressImage } from "@/lib/image-compress";
 
 export interface UploadedFile {
   assetId: string;
   filename: string;
+  /** Signed logo URL (BRAND_LOGO uploads only). */
+  logoUrl?: string | null;
 }
 
-/** Upload one file straight to Cloudinary with progress (no processing in the browser). */
+/** Upload one (already compressed) file straight to Cloudinary with progress. */
 function putToCloudinary(url: string, fields: Record<string, string | number>, file: File, onProgress: (pct: number) => void) {
   return new Promise<void>((resolve, reject) => {
     const body = new FormData();
@@ -26,9 +29,10 @@ function putToCloudinary(url: string, fields: Record<string, string | number>, f
 }
 
 /**
- * Server-authorised uploads: the server issues a single-use, signed upload
- * for a public id it chooses, the file goes directly to Cloudinary, and the
- * server verifies and records it. Only shown when uploads are configured.
+ * Server-authorised uploads: images are compressed in the browser first, the
+ * server issues a single-use, signed upload (public id + compression chosen
+ * server-side), the file goes directly to Cloudinary, which compresses it
+ * again on arrival, and the server verifies and records what was stored.
  */
 export function MediaUploader({
   purpose,
@@ -39,7 +43,7 @@ export function MediaUploader({
   onChange,
   label = "Upload file",
 }: {
-  purpose: "VERSION_MEDIA" | "RECEIPT";
+  purpose: "VERSION_MEDIA" | "RECEIPT" | "BRAND_LOGO";
   contentId?: string | null;
   accept: string;
   multiple?: boolean;
@@ -55,8 +59,9 @@ export function MediaUploader({
     if (!files?.length) return;
     setError(null);
     const added: UploadedFile[] = [];
-    for (const file of Array.from(files)) {
-      setProgress({ name: file.name, pct: 0 });
+    for (const picked of Array.from(files)) {
+      setProgress({ name: picked.name, pct: 0 });
+      const file = await compressImage(picked, purpose === "BRAND_LOGO" ? { maxEdge: 512 } : undefined);
       const intent = await createUploadIntentAction({ purpose, contentId, filename: file.name, mimeType: file.type, bytes: file.size });
       if (!intent.ok) {
         setError(intent.error.fieldErrors ? Object.values(intent.error.fieldErrors).flat().join(" ") : intent.error.message);
@@ -73,7 +78,7 @@ export function MediaUploader({
         setError(done.error.message);
         break;
       }
-      added.push({ assetId: done.data.assetId, filename: done.data.filename });
+      added.push({ assetId: done.data.assetId, filename: done.data.filename, logoUrl: done.data.logoUrl });
     }
     setProgress(null);
     if (input.current) input.current.value = "";

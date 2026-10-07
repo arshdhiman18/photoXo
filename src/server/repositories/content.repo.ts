@@ -5,6 +5,7 @@ import {
   CLIENT_VISIBLE_STATUSES,
   ContentStatus,
   OPEN_TASK_STATUSES,
+  VERSION_TASK_TYPES,
 } from "@/lib/domain/content";
 import { BrandRole, SystemRole } from "@/lib/domain/roles";
 import type { Actor } from "@/server/authz/actor";
@@ -227,6 +228,37 @@ export async function cancelOpenTasks(
   if (opts.routeOnly) filter.source = "ROUTE";
   const res = await ProductionTaskModel.updateMany(filter, { $set: { status: "CANCELLED" } });
   return res.modifiedCount;
+}
+
+/**
+ * Keep version-producing tasks in step with review: submitting a version for
+ * review completes the open creation tasks; changes requested reopens them
+ * for the same people. Returns the tasks that changed (for auditing).
+ */
+export async function syncVersionTasks(
+  agencyId: string,
+  contentId: string,
+  mode: "complete" | "reopen",
+): Promise<{ task: ProductionTaskDoc; to: "COMPLETED" | "TODO" }[]> {
+  await connectDb();
+  const tasks = await ProductionTaskModel.find({
+    agencyId: oid(agencyId),
+    contentId: oid(contentId),
+    taskType: { $in: VERSION_TASK_TYPES },
+    status: mode === "complete" ? { $in: ["TODO", "IN_PROGRESS"] } : "COMPLETED",
+  }).lean<ProductionTaskDoc[]>();
+  const now = new Date();
+  const changed: { task: ProductionTaskDoc; to: "COMPLETED" | "TODO" }[] = [];
+  for (const t of tasks) {
+    const to = mode === "complete" ? "COMPLETED" : "TODO";
+    const set =
+      mode === "complete"
+        ? { status: to, completedAt: now, startedAt: t.startedAt ?? now }
+        : { status: to, completedAt: null };
+    const res = await ProductionTaskModel.updateOne({ _id: t._id, status: t.status }, { $set: set });
+    if (res.modifiedCount === 1) changed.push({ task: t, to });
+  }
+  return changed;
 }
 
 // ── Aggregate reads (single round trip, no N+1) ───────────────────────────

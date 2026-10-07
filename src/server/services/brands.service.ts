@@ -18,8 +18,8 @@ import type {
 } from "@/features/brands/types";
 import { recordActivity } from "@/server/activity/record";
 import type { Actor } from "@/server/authz/actor";
-import { ConflictError } from "@/server/authz/errors";
-import { assertCan, canManageBrands } from "@/server/authz/permissions";
+import { ConflictError, NotFoundError } from "@/server/authz/errors";
+import { assertCan, canDeleteBrands, canManageBrands } from "@/server/authz/permissions";
 import type { BrandDoc } from "@/server/db/models";
 import { toBrandDetailDTO, toBrandPublicDTO, toSocialHandleDTO } from "@/server/dto/brands";
 import {
@@ -32,6 +32,8 @@ import {
 } from "@/server/repositories/brands.repo";
 import { memberCountsByBrand, membershipsRepo } from "@/server/repositories/memberships.repo";
 import { usersRepo } from "@/server/repositories/users.repo";
+import { brandDeletionBlockers, hasBlockers, purgeBrand } from "@/server/repositories/deletion.repo";
+import { describeBlockers } from "./deletion-messages";
 import { withTransaction } from "@/server/db/transaction";
 import { asObjectId } from "@/server/repositories/scoped-repository";
 import type { z } from "zod";
@@ -291,4 +293,37 @@ export async function listBrandOptions(actor: Actor): Promise<{ id: string; name
     { sort: { name: 1 }, limit: 200, projection: { name: 1 } },
   );
   return brands.map((b) => ({ id: String(b._id), name: b.name }));
+}
+
+/**
+ * Permanently delete a brand created by mistake (ADMIN). Only while it has no
+ * content, shoots, expenses or files; its team assignments and reference
+ * library go with it. Brands with history are archived instead.
+ */
+export async function deleteBrand(actor: Actor, brandId: string): Promise<void> {
+  assertCan(canDeleteBrands(actor));
+  const brand = await getVisibleBrand(actor, brandId);
+  const blockers = await brandDeletionBlockers(actor.agencyId, brandId);
+  if (hasBlockers(blockers)) {
+    throw new ConflictError(`${brand.name} has ${describeBlockers(blockers)}, so it can't be deleted. Archive it instead.`);
+  }
+  await withTransaction(async () => {
+    if (!(await purgeBrand(actor.agencyId, brandId))) throw new NotFoundError();
+    await recordActivity({
+      actor,
+      action: ActivityAction.BRAND_DELETED,
+      entity: { kind: ActivityEntityKind.BRAND, id: brandId },
+      meta: { name: brand.name },
+    });
+  });
+}
+
+/** Whether the Delete button should be offered (ADMIN, brand without history). */
+export async function getBrandDeletion(actor: Actor, brandId: string): Promise<{ deletable: boolean; reason: string | null }> {
+  if (!canDeleteBrands(actor)) return { deletable: false, reason: null };
+  await getVisibleBrand(actor, brandId);
+  const blockers = await brandDeletionBlockers(actor.agencyId, brandId);
+  return hasBlockers(blockers)
+    ? { deletable: false, reason: `It has ${describeBlockers(blockers)}.` }
+    : { deletable: true, reason: null };
 }

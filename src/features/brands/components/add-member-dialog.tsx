@@ -51,6 +51,8 @@ export function AddMemberDialog({
   const [q, setQ] = useState("");
   const [results, setResults] = useState<MemberCandidateDTO[] | null>(null);
   const [selected, setSelected] = useState<MemberCandidateDTO | null>(null);
+  /** Extra roles to give the same person in one go (e.g. videographer + editor). */
+  const [extra, setExtra] = useState<BrandRole[]>([]);
   const [searching, startSearch] = useTransition();
   const [saving, startSave] = useTransition();
 
@@ -71,15 +73,29 @@ export function AddMemberDialog({
     return () => clearTimeout(t);
   }, [brandId, role, q]);
 
+  const extraOptions =
+    role && selected
+      ? BRAND_ROLE_ORDER.filter(
+          (r) => r !== role && BRAND_ROLE_ALLOWED_SYSTEM_ROLES[r].includes(selected.systemRole),
+        )
+      : [];
+
   function assign() {
     if (!role || !selected) return;
+    const roles = [role, ...extra.filter((r) => extraOptions.includes(r))];
     startSave(async () => {
-      const res = await addMemberAction({ brandId, userId: selected.id, role });
-      if (!res.ok) return void toast.error(res.error.message);
-      toast.success(
-        `${selected.name.split(" ")[0]} ${res.data.outcome === "reactivated" ? "restored" : "added"} as ${BRAND_ROLE_LABEL[role]}`,
-      );
+      const added: string[] = [];
+      for (const r of roles) {
+        const res = await addMemberAction({ brandId, userId: selected.id, role: r });
+        if (res.ok) added.push(BRAND_ROLE_LABEL[r]);
+        else if (!/already/i.test(res.error.message)) {
+          toast.error(`${BRAND_ROLE_LABEL[r]}: ${res.error.message}`);
+        }
+      }
+      if (added.length) toast.success(`${selected.name.split(" ")[0]} added as ${added.join(", ")}`);
+      else toast.info(`${selected.name.split(" ")[0]} already has ${roles.length > 1 ? "these roles" : "this role"} here`);
       onOpenChange(false);
+      setExtra([]);
       router.refresh();
     });
   }
@@ -99,6 +115,7 @@ export function AddMemberDialog({
               setRole(v as BrandRole);
               setSelected(null);
               setResults(null);
+              setExtra([]);
             }}
           >
             <SelectTrigger id="member-role" className="w-full">
@@ -191,12 +208,43 @@ export function AddMemberDialog({
           </div>
         )}
 
+        {extraOptions.length > 0 && (
+          <fieldset className="grid gap-1.5">
+            <legend className="mb-1 text-sm font-medium">
+              Also add {selected!.name.split(" ")[0]} as{" "}
+              <span className="font-normal text-muted-foreground">(optional)</span>
+            </legend>
+            <div className="grid grid-cols-2 gap-1.5">
+              {extraOptions.map((r) => {
+                const on = extra.includes(r);
+                return (
+                  <label
+                    key={r}
+                    className={cn(
+                      "flex cursor-pointer items-center gap-2 rounded-md border px-2.5 py-2 text-sm [@media(pointer:coarse)]:py-2.5",
+                      on && "border-foreground/30 bg-accent",
+                    )}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={on}
+                      onChange={() => setExtra((x) => (on ? x.filter((y) => y !== r) : [...x, r]))}
+                      className="size-4 accent-foreground"
+                    />
+                    <span className="truncate">{BRAND_ROLE_LABEL[r]}</span>
+                  </label>
+                );
+              })}
+            </div>
+          </fieldset>
+        )}
+
         <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
           <Button onClick={assign} disabled={!role || !selected || saving}>
-            {saving ? "Adding…" : "Add to brand"}
+            {saving ? "Adding…" : extra.length ? `Add with ${extra.length + 1} roles` : "Add to brand"}
           </Button>
         </div>
       </div>

@@ -699,7 +699,7 @@ export function EditContentButton({ content, full }: { content: EditableContent;
             {refs.map((r) => (
               <div
                 key={r.id}
-                className="flex items-center gap-2 rounded-md border px-2.5 py-1.5 text-sm"
+                className="flex min-w-0 items-center gap-2 rounded-md border px-2.5 py-1.5 text-sm"
               >
                 <span className="min-w-0 flex-1 truncate">
                   <span className="font-medium">{REFERENCE_PLATFORM_LABEL[r.platform]}</span>{" "}

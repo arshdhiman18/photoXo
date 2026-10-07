@@ -226,6 +226,7 @@ export const TASK_TYPES = Object.values(TaskType);
 const PRODUCTION_BRAND_ROLES: BrandRole[] = [
   BrandRole.VIDEOGRAPHER,
   BrandRole.PHOTOGRAPHER,
+  BrandRole.CONTENT_CREATOR,
   BrandRole.EDITOR,
   BrandRole.DESIGNER,
   BrandRole.ASSISTANT,
@@ -315,6 +316,13 @@ export const ASSIGNEE_TASK_TRANSITIONS: Record<TaskStatus, TaskStatus[]> = {
   COMPLETED: ["IN_PROGRESS"], // reopen if completed by mistake
   CANCELLED: [],
 };
+
+/**
+ * Statuses a supervisor (ADMIN/MANAGER) may set on someone else's task. They
+ * assign, unblock, block and remove work; starting and completing it is the
+ * assignee's job, so progress always reflects what the person actually did.
+ */
+export const SUPERVISOR_TASK_STATUSES: TaskStatus[] = ["TODO", "BLOCKED", "CANCELLED"];
 
 export const TaskSource = { ROUTE: "ROUTE", MANUAL: "MANUAL" } as const;
 export type TaskSource = (typeof TaskSource)[keyof typeof TaskSource];

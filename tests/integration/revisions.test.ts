@@ -223,6 +223,19 @@ describe("post-publication revision", () => {
     expect(s.revisions).toEqual([expect.objectContaining({ number: 1, reason: "Refresh for Diwali", fromVersionNumber: 1, previousStatus: "COMPLETED" })]);
   });
 
+  it("the creator's task completes when they submit for review and reopens when changes are requested", async () => {
+    const id = await newContent();
+    const task = () => ProductionTaskModel.findOne({ contentId: id, taskType: "DESIGN" }).lean();
+    const v1 = await version(id, "V1");
+    await submitForInternalReview(D, { contentId: id, versionId: v1 });
+    expect(await task()).toMatchObject({ status: "COMPLETED", completedAt: expect.any(Date), startedAt: expect.any(Date) });
+    await decideInternalReview(M, { contentId: id, versionId: v1, decision: "CHANGES_REQUESTED", comment: "Brighter please" });
+    expect(await task()).toMatchObject({ status: "TODO", completedAt: null });
+    const v2 = await version(id, "V2");
+    await submitForInternalReview(D, { contentId: id, versionId: v2 });
+    expect((await task())!.status).toBe("COMPLETED");
+  });
+
   it("the content activity timeline covers related records and is ops-only", async () => {
     const { id } = await completedV1();
     await startRevision(M, { contentId: id, reason: "Refresh for Diwali" });

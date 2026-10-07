@@ -20,6 +20,8 @@ const INTERNAL_OPS = [SystemRole.ADMIN, SystemRole.MANAGER] as const;
 export const canManageUsers = (a: Who) => is(a, SystemRole.ADMIN);
 export const canManageRoles = (a: Who) => is(a, SystemRole.ADMIN);
 export const canManageSettings = (a: Who) => is(a, SystemRole.ADMIN);
+/** Permanently delete a brand created by mistake (only while it has no history). */
+export const canDeleteBrands = (a: Who) => is(a, SystemRole.ADMIN);
 
 // ── Operations (ADMIN + MANAGER) ───────────────────────────────────────────
 export const canManageProduction = (a: Who) => is(a, ...INTERNAL_OPS);

@@ -60,6 +60,7 @@ export const SHOOT_CREW_ROLES: BrandRole[] = [
   BrandRole.BRAND_MANAGER,
   BrandRole.VIDEOGRAPHER,
   BrandRole.PHOTOGRAPHER,
+  BrandRole.CONTENT_CREATOR,
   BrandRole.ASSISTANT,
   BrandRole.OTHER_PRODUCTION,
 ];

@@ -197,6 +197,11 @@
     @apply bg-background text-foreground antialiased;
     font-feature-settings: "cv11", "ss01";
   }
+  /* Browsers give <fieldset> min-width: min-content, so one long unbroken
+     value (e.g. a URL) would stretch a form past its dialog. */
+  fieldset {
+    min-width: 0;
+  }
   /* Never allow accidental horizontal page scroll. */
   html,
   body {

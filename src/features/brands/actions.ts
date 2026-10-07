@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { authedAction } from "@/server/actions/safe-action";
-import { canManageBrands, canManageBrandTeam } from "@/server/authz/permissions";
+import { canDeleteBrands, canManageBrands, canManageBrandTeam } from "@/server/authz/permissions";
 import {
   addMember,
   changeMemberRole,
@@ -13,6 +13,7 @@ import {
 } from "@/server/services/brand-team.service";
 import {
   archiveBrand,
+  deleteBrand,
   createBrand,
   reactivateBrand,
   updateBrand,
@@ -59,6 +60,16 @@ export const updateBrandAction = authedAction(
     return brand;
   },
   brandAdmin,
+);
+
+export const deleteBrandAction = authedAction(
+  brandTargetSchema,
+  async (actor, { brandId }) => {
+    await deleteBrand(actor, brandId);
+    revalidatePath("/admin/brands");
+    return null;
+  },
+  { authorize: canDeleteBrands },
 );
 
 export const archiveBrandAction = authedAction(

@@ -218,8 +218,11 @@ describe("content creation", () => {
     ).toEqual(["UPLOAD_RAW", "EDIT"]);
     const raw = tasks.find((t) => t.taskType === "UPLOAD_RAW")!;
     await assignTask(A, String(raw._id), rahul.id);
-    // A manager may override the wait (e.g. footage already exists); this starts production.
-    await updateTaskStatus(A, String(raw._id), "IN_PROGRESS");
+    // A manager may override the wait (e.g. footage already exists) but never starts
+    // someone's work for them; the assignee starting it begins production.
+    await expect(updateTaskStatus(A, String(raw._id), "IN_PROGRESS")).rejects.toMatchObject({ code: "CONFLICT" });
+    await updateTaskStatus(A, String(raw._id), "TODO");
+    await updateTaskStatus(await actorOf(rahul), String(raw._id), "IN_PROGRESS");
     await expect(changeRoute(A, { contentId: id, route: "DESIGN" })).rejects.toMatchObject({
       code: "CONFLICT",
     });

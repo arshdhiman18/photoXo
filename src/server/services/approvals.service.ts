@@ -66,6 +66,7 @@ import {
   assetsByIds,
   contentRepo,
   peopleByIds,
+  syncVersionTasks,
   tasksRepo,
   versionsRepo,
 } from "@/server/repositories/content.repo";
@@ -158,6 +159,19 @@ async function moveContent(
     event,
     ...meta,
   });
+  // Submitting for review = the creator's task is done; changes requested = it's theirs again.
+  const mode = t.to === "INTERNAL_REVIEW" ? "complete" : t.to === "CHANGES_REQUESTED" ? "reopen" : null;
+  if (mode) {
+    for (const { task, to } of await syncVersionTasks(actor.agencyId, String(content._id), mode)) {
+      await recordActivity({
+        actor,
+        action: ActivityAction.TASK_STATUS_CHANGED,
+        entity: { kind: ActivityEntityKind.PRODUCTION_TASK, id: String(task._id) },
+        brandId: String(task.brandId),
+        meta: { contentId: String(content._id), from: task.status, to, reason: mode === "complete" ? "submitted_for_review" : "changes_requested" },
+      });
+    }
+  }
   return updated;
 }
 

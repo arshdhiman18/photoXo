@@ -18,6 +18,8 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { createBrandAction, updateBrandAction } from "@/features/brands/actions";
+import { MediaUploader } from "@/features/media/components/media-uploader";
+import { LOGO_MIME_TYPES } from "@/lib/domain/media";
 import { createBrandSchema } from "@/features/brands/schemas";
 import type { BrandDetailDTO } from "@/features/brands/types";
 import {
@@ -59,6 +61,7 @@ export function BrandFormDialog({
   const router = useRouter();
   const [pending, start] = useTransition();
   const [errors, setErrors] = useState<Errors>({});
+  const [logoUrl, setLogoUrl] = useState(brand?.logoUrl ?? "");
   const [handles, setHandles] = useState<HandleRow[]>(() =>
     (brand?.socialHandles ?? []).map((h) =>
       newRow({ platform: h.platform, url: h.url, handle: h.handle ?? "", label: h.label ?? "" }),
@@ -77,7 +80,7 @@ export function BrandFormDialog({
     const input = {
       name: String(fd.get("name") ?? ""),
       description: String(fd.get("description") ?? ""),
-      logoUrl: String(fd.get("logoUrl") ?? ""),
+      logoUrl,
       socialHandles: handles.map(({ platform, url, handle, label }) => ({
         platform,
         url,
@@ -138,20 +141,44 @@ export function BrandFormDialog({
 
         <div className="grid gap-1.5">
           <Label htmlFor="brand-logo">
-            Logo URL <span className="font-normal text-muted-foreground">(optional)</span>
+            Logo <span className="font-normal text-muted-foreground">(optional)</span>
           </Label>
+          <div className="flex min-w-0 items-center gap-3">
+            {logoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element -- user-provided logo preview
+              <img src={logoUrl} alt="" className="size-12 shrink-0 rounded-md border object-contain" referrerPolicy="no-referrer" />
+            ) : (
+              <span className="inline-flex size-12 shrink-0 items-center justify-center rounded-md border border-dashed text-[10px] text-muted-foreground">
+                No logo
+              </span>
+            )}
+            <div className="flex min-w-0 flex-col gap-1.5">
+              <MediaUploader
+                purpose="BRAND_LOGO"
+                accept={LOGO_MIME_TYPES.join(",")}
+                value={[]}
+                onChange={(files) => files[0]?.logoUrl && setLogoUrl(files[0].logoUrl)}
+                label={logoUrl ? "Replace logo" : "Upload logo"}
+              />
+              {logoUrl && (
+                <button type="button" className="w-fit text-xs text-muted-foreground underline-offset-2 hover:underline" onClick={() => setLogoUrl("")}>
+                  Remove logo
+                </button>
+              )}
+            </div>
+          </div>
           <Input
             id="brand-logo"
-            name="logoUrl"
             type="url"
             inputMode="url"
-            defaultValue={brand?.logoUrl ?? ""}
-            placeholder="https://…/logo.png"
+            value={logoUrl}
+            onChange={(e) => setLogoUrl(e.target.value)}
+            placeholder="…or paste an image link (https://…)"
             aria-invalid={!!errors.logoUrl}
           />
           <FieldError messages={errors.logoUrl} />
           <p className="text-xs text-muted-foreground">
-            Paste a link to a hosted image (square works best).
+            JPEG, PNG or WebP up to 5 MB, square works best. It&apos;s resized and compressed automatically.
           </p>
         </div>
 

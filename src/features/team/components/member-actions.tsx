@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   Ban,
   Link2,
+  Trash2,
   MoreHorizontal,
   PauseCircle,
   PlayCircle,
@@ -24,6 +25,7 @@ import {
 import {
   changeUserRoleAction,
   deactivateUserAction,
+  deleteUserAction,
   reactivateUserAction,
   resendInvitationAction,
   revokeInvitationAction,
@@ -122,6 +124,23 @@ export function MemberActions({ member }: { member: TeamMemberDTO }) {
               >
                 <XCircle />
                 Revoke invitation
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                variant="destructive"
+                onSelect={() =>
+                  setConfirm({
+                    title: `Delete ${first}?`,
+                    description:
+                      "They haven't joined yet, so they're removed completely: account, invitation and brand assignments. This can't be undone.",
+                    confirmLabel: "Delete permanently",
+                    destructive: true,
+                    run: () => deleteUserAction(id),
+                    success: `${first} deleted`,
+                  })
+                }
+              >
+                <Trash2 />
+                Delete
               </DropdownMenuItem>
             </>
           )}
