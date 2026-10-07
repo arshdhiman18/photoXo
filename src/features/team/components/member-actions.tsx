@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   Ban,
-  MailPlus,
+  Link2,
   MoreHorizontal,
   PauseCircle,
   PlayCircle,
@@ -29,7 +29,7 @@ import {
   revokeInvitationAction,
   suspendUserAction,
 } from "@/features/team/actions";
-import { notifyDelivery } from "@/features/team/components/invite-dialog";
+import { InviteLinkDialog, type IssuedInvite } from "@/features/team/components/invite-link-dialog";
 import { RoleRadioGroup } from "@/features/team/components/role-radio-group";
 import type { TeamMemberDTO } from "@/features/team/types";
 import type { ActionResult } from "@/lib/action-result";
@@ -53,6 +53,7 @@ export function MemberActions({ member }: { member: TeamMemberDTO }) {
   const [pending, start] = useTransition();
   const [confirm, setConfirm] = useState<Confirm | null>(null);
   const [roleOpen, setRoleOpen] = useState(false);
+  const [issued, setIssued] = useState<IssuedInvite | null>(null);
 
   if (member.isSelf || member.role === SystemRole.ADMIN) {
     return <span className="inline-block size-8" aria-hidden />;
@@ -96,13 +97,13 @@ export function MemberActions({ member }: { member: TeamMemberDTO }) {
                   start(async () => {
                     const res = await resendInvitationAction(id);
                     if (!res.ok) return void toast.error(res.error.message);
-                    notifyDelivery(res.data.delivery, member.email);
+                    setIssued({ ...res.data.invite, name: member.name, email: member.email });
                     router.refresh();
                   })
                 }
               >
-                <MailPlus />
-                Resend invitation
+                <Link2 />
+                Get new invite link
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem
@@ -217,6 +218,7 @@ export function MemberActions({ member }: { member: TeamMemberDTO }) {
           )
         }
       />
+      <InviteLinkDialog invite={issued} onOpenChange={(o) => !o && setIssued(null)} />
     </>
   );
 }

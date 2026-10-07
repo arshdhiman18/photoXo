@@ -9,35 +9,24 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { inviteUserAction } from "@/features/team/actions";
+import { InviteLinkDialog, type IssuedInvite } from "@/features/team/components/invite-link-dialog";
 import { RoleRadioGroup } from "@/features/team/components/role-radio-group";
 import { inviteUserSchema } from "@/features/team/schemas";
-import type { InviteDelivery } from "@/features/team/types";
 import type { InvitableRole } from "@/lib/domain/roles";
 
 type Errors = Partial<Record<"name" | "email" | "role", string[]>>;
 
-export function notifyDelivery(delivery: InviteDelivery, email: string) {
-  if (delivery === "sent") toast.success(`Invitation sent to ${email}`);
-  else if (delivery === "logged")
-    toast.info("Invitation created", {
-      description:
-        "Email isn't configured in development — the invitation link was printed to the server console.",
-    });
-  else
-    toast.warning("Invitation created, but the email couldn't be sent", {
-      description: "Use “Resend invitation” from the member's menu to try again.",
-    });
-}
-
 export function InviteButton({ variant = "default" }: { variant?: "default" | "outline" }) {
   const [open, setOpen] = useState(false);
+  const [issued, setIssued] = useState<IssuedInvite | null>(null);
   return (
     <>
       <Button variant={variant} onClick={() => setOpen(true)}>
         <Plus data-icon="inline-start" />
         Invite member
       </Button>
-      <InviteDialog open={open} onOpenChange={setOpen} />
+      <InviteDialog open={open} onOpenChange={setOpen} onIssued={setIssued} />
+      <InviteLinkDialog invite={issued} onOpenChange={(o) => !o && setIssued(null)} />
     </>
   );
 }
@@ -45,9 +34,11 @@ export function InviteButton({ variant = "default" }: { variant?: "default" | "o
 function InviteDialog({
   open,
   onOpenChange,
+  onIssued,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
+  onIssued: (invite: IssuedInvite) => void;
 }) {
   const [pending, start] = useTransition();
   const [role, setRole] = useState<InvitableRole | undefined>();
@@ -85,9 +76,10 @@ function InviteDialog({
         else toast.error(res.error.message);
         return;
       }
-      notifyDelivery(res.data.delivery, parsed.data.email);
+      toast.success(`${parsed.data.name} invited`);
       onOpenChange(false);
       reset();
+      onIssued({ ...res.data.invite, name: parsed.data.name, email: parsed.data.email });
     });
   }
 
@@ -99,7 +91,7 @@ function InviteDialog({
         if (!o) reset();
       }}
       title="Invite a team member"
-      description="They'll get an email with a link to set their password. Links expire after 7 days."
+      description="You'll get a link to share with them (copy or WhatsApp) so they can set their password. Links expire after 7 days."
     >
       <form key={formKey} onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
         <div className="grid gap-1.5">
@@ -139,7 +131,7 @@ function InviteDialog({
             Cancel
           </Button>
           <Button type="submit" disabled={pending}>
-            {pending ? "Sending…" : "Send invitation"}
+            {pending ? "Creating…" : "Create invite link"}
           </Button>
         </div>
       </form>

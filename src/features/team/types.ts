@@ -34,3 +34,15 @@ export interface TeamListData {
 
 /** sent = provider accepted · logged = dev console only · failed = provider error (admin can resend) */
 export type InviteDelivery = "sent" | "logged" | "failed";
+
+/**
+ * Returned only to the admin who issued the invitation, so they can share the
+ * link themselves (copy / WhatsApp). The token is never stored in plain text —
+ * this response is the only place it exists; a new link revokes the old one.
+ */
+export interface InviteLinkDTO {
+  delivery: InviteDelivery;
+  url: string;
+  expiresInDays: number;
+  agencyName: string;
+}

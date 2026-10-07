@@ -184,6 +184,28 @@ describe("invitation flow", () => {
     await acceptInvitation({ token: second, name: "Priya", password: strongPassword() });
   });
 
+  it("the issuing admin gets the shareable link (same token as the email); a new link revokes it", async () => {
+    const { actor } = await signInActor(admin);
+    let issued: Awaited<ReturnType<typeof inviteUser>> | undefined;
+    const emailed = await inviteAndCaptureToken(async () => {
+      issued = await inviteUser(actor, { name: "Share Me", email: "share@example.test", role: SystemRole.CLIENT });
+    });
+    expect(issued!.invite).toMatchObject({ delivery: "logged", expiresInDays: 7, url: expect.stringMatching(/\/invite\/[A-Za-z0-9_-]{43}$/) });
+    const shared = issued!.invite.url.split("/invite/")[1]!;
+    expect(shared).toBe(emailed);
+    expect(await previewInvitation(shared)).toMatchObject({ state: "valid", email: "share@example.test" });
+
+    const user = await UserModel.findOne({ email: "share@example.test" }).lean();
+    let again: Awaited<ReturnType<typeof resendInvitation>> | undefined;
+    await inviteAndCaptureToken(async () => {
+      again = await resendInvitation(actor, String(user!._id));
+    });
+    const fresh = again!.invite.url.split("/invite/")[1]!;
+    expect(fresh).not.toBe(shared);
+    expect(await previewInvitation(shared)).toEqual({ state: "invalid" });
+    await acceptInvitation({ token: fresh, name: "Share Me", password: strongPassword() });
+  });
+
   it("garbage and unknown tokens are rejected without detail", async () => {
     expect(await previewInvitation("not-a-token")).toEqual({ state: "invalid" });
     expect(await previewInvitation("A".repeat(43))).toEqual({ state: "invalid" });

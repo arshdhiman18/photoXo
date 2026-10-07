@@ -15,7 +15,7 @@ import {
 } from "@/server/authz/permissions";
 import { generateToken } from "@/server/auth/tokens";
 import { hasCredentialAccount, revokeAllSessions } from "@/server/auth/sessions";
-import type { InviteDelivery, TeamListData, TeamMemberDTO } from "@/features/team/types";
+import type { InviteLinkDTO, TeamListData, TeamMemberDTO } from "@/features/team/types";
 import { toTeamMemberDTO } from "@/server/dto/users";
 import { sendInvitationEmail } from "@/server/email/templates";
 import { EmailDeliveryError } from "@/server/email/transport";
@@ -134,7 +134,7 @@ async function brandChipsFor(
 
 // ── Invitations ────────────────────────────────────────────────────────────
 
-async function issueInvitation(actor: Actor, user: UserDoc): Promise<InviteDelivery> {
+async function issueInvitation(actor: Actor, user: UserDoc): Promise<InviteLinkDTO> {
   const agency = await getOwnAgency(actor);
   if (!agency) throw new NotFoundError();
 
@@ -149,6 +149,9 @@ async function issueInvitation(actor: Actor, user: UserDoc): Promise<InviteDeliv
     invitedBy: actor.userId,
   });
 
+  const url = `${env.APP_URL}/invite/${token}`;
+  const link = { url, expiresInDays: INVITATION_TTL_DAYS, agencyName: agency.name };
+  // Email is best-effort: the admin always gets the link to share directly.
   try {
     const delivery = await sendInvitationEmail({
       to: user.email,
@@ -156,14 +159,14 @@ async function issueInvitation(actor: Actor, user: UserDoc): Promise<InviteDeliv
       role: user.role,
       agencyName: agency.name,
       inviterName: actor.name,
-      url: `${env.APP_URL}/invite/${token}`,
+      url,
       expiresInDays: INVITATION_TTL_DAYS,
     });
-    return delivery.status;
+    return { ...link, delivery: delivery.status };
   } catch (error) {
     if (error instanceof EmailDeliveryError) {
       console.error("[invite] email delivery failed", error.message);
-      return "failed";
+      return { ...link, delivery: "failed" };
     }
     throw error;
   }
@@ -172,7 +175,7 @@ async function issueInvitation(actor: Actor, user: UserDoc): Promise<InviteDeliv
 export async function inviteUser(
   actor: Actor,
   input: { name: string; email: string; role: InvitableRole },
-): Promise<{ user: TeamMemberDTO; delivery: InviteDelivery }> {
+): Promise<{ user: TeamMemberDTO; invite: InviteLinkDTO }> {
   assertCan(canManageUsers(actor));
   assertCan(canAssignRole(actor, input.role), "That role can't be assigned here.");
 
@@ -210,8 +213,8 @@ export async function inviteUser(
     meta: { role: input.role, email: input.email },
   });
 
-  const delivery = await issueInvitation(actor, user);
-  return { user: toTeamMemberDTO(user, { selfId: actor.userId }), delivery };
+  const invite = await issueInvitation(actor, user);
+  return { user: toTeamMemberDTO(user, { selfId: actor.userId }), invite };
 }
 
 /** Loads a target user the actor is allowed to administer (else 404/403). */
@@ -227,18 +230,18 @@ async function loadAdministrableUser(actor: Actor, userId: string): Promise<User
   return target;
 }
 
-export async function resendInvitation(actor: Actor, userId: string) {
+export async function resendInvitation(actor: Actor, userId: string): Promise<{ invite: InviteLinkDTO }> {
   const target = await loadAdministrableUser(actor, userId);
   if (target.status !== UserStatus.INVITED) {
     throw new ConflictError("Only pending invitations can be resent.");
   }
-  const delivery = await issueInvitation(actor, target);
+  const invite = await issueInvitation(actor, target);
   await recordActivity({
     actor,
     action: ActivityAction.USER_INVITE_RESENT,
     entity: { kind: ActivityEntityKind.USER, id: userId },
   });
-  return { delivery };
+  return { invite };
 }
 
 export async function revokeInvitation(actor: Actor, userId: string) {
